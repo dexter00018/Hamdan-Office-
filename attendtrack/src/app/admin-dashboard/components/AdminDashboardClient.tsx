@@ -6,7 +6,8 @@ import MetricCard from './MetricCard';
 import AttendanceTable from './AttendanceTable';
 import PasscodeGate from './PasscodeGate';
 import { ToastContainer, ToastMessage } from '@/components/ui/Toast';
-import { getAllRecords, seedMockData, AttendanceRecord } from '@/lib/attendanceStore';
+// Inalis ang seedMockData dito para hindi na mag-load ang dummy records
+import { getAllRecords, AttendanceRecord } from '@/lib/attendanceStore';
 
 // Recharts components are client-only — dynamically imported to prevent SSR mismatch
 const AttendanceTrendChart = dynamic(() => import('./AttendanceTrendChart'), { ssr: false });
@@ -101,7 +102,6 @@ function buildStatusData(records: AttendanceRecord[]): StatusPoint[] {
 }
 
 function exportToCSV(records: AttendanceRecord[]) {
-  // Backend integration point: replace with server-side export endpoint
   const headers = ['ID', 'Employee Name', 'Employee ID', 'Date', 'Time In', 'Time Out', 'Duration', 'Status', 'Has Signature'];
   const rows = records.map((r) => [
     r.id,
@@ -150,9 +150,11 @@ export default function AdminDashboardClient() {
   }, []);
 
   const loadRecords = useCallback(() => {
-    // Backend integration point: GET /api/attendance/records
     setLoading(true);
-    seedMockData();
+    
+    // Ni-comment out ang seedMockData() para hindi na mag-generate ng dummy data.
+    // seedMockData(); 
+    
     setTimeout(() => {
       const all = getAllRecords();
       setRecords(all);
@@ -235,7 +237,7 @@ export default function AdminDashboardClient() {
         </div>
       </div>
 
-      {/* KPI Bento Grid — 6 cards: 3+3 */}
+      {/* KPI Bento Grid */}
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-6 gap-4">
           {Array.from({ length: 6 }, (_, i) => (
@@ -301,7 +303,6 @@ export default function AdminDashboardClient() {
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-2 gap-5">
-        {/* 14-Day Trend */}
         <div className="card-elevated p-5">
           <div className="mb-4">
             <h2 className="text-sm font-semibold text-foreground">14-Day Attendance Trend</h2>
@@ -314,7 +315,6 @@ export default function AdminDashboardClient() {
           )}
         </div>
 
-        {/* Weekly Status Distribution */}
         <div className="card-elevated p-5">
           <div className="mb-4">
             <h2 className="text-sm font-semibold text-foreground">Weekly Status Distribution</h2>

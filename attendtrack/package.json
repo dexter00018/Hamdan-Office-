@@ -58,7 +58,8 @@
     "react": "19.0.3",
     "react-dom": "19.0.3",
     "react-hook-form": "^7.75.0",
-    "recharts": "^2.15.2"
+    "recharts": "^2.15.2",
+    "@supabase/supabase-js": "^2.37.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

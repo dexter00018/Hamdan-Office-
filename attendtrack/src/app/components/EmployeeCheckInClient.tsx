@@ -6,7 +6,7 @@ import LiveClock from './LiveClock';
 import SignatureCanvas, { SignatureCanvasHandle } from './SignatureCanvas';
 import TodaySubmissions from './TodaySubmissions';
 import { ToastContainer, ToastMessage } from '@/components/ui/Toast';
-import { saveRecord, getTodayRecords, generateId, AttendanceRecord,  } from '@/lib/attendanceStore';
+import { saveRecord, getTodayRecords, generateId, AttendanceRecord } from '@/lib/attendanceStore';
 
 interface FormValues {
   employeeName: string;
@@ -42,12 +42,17 @@ export default function EmployeeCheckInClient() {
     formState: { errors },
   } = useForm<FormValues>();
 
-  const refreshTodayRecords = useCallback(() => {
-    setTodayRecords(getTodayRecords());
+  const refreshTodayRecords = useCallback(async () => {
+    try {
+      const records = await getTodayRecords();
+      setTodayRecords(records);
+    } catch (error) {
+      console.error('Failed to load today records:', error);
+      setTodayRecords([]);
+    }
   }, []);
 
   useEffect(() => {
-    // Backend integration point: fetch today's records from API
     refreshTodayRecords();
   }, [refreshTodayRecords]);
 
@@ -100,9 +105,6 @@ export default function EmployeeCheckInClient() {
 
     setSubmitting(true);
 
-    // Simulate async save — Backend integration point: POST to /api/attendance
-    await new Promise((r) => setTimeout(r, 800));
-
     const today = new Date().toISOString().split('T')[0];
     const sigData = sigRef.current?.toDataURL() ?? null;
 
@@ -125,19 +127,27 @@ export default function EmployeeCheckInClient() {
       submittedAt: new Date().toISOString(),
     };
 
-    saveRecord(record);
-    refreshTodayRecords();
-
-    setSubmitting(false);
-    setSubmitted(true);
-
-    addToast({
-      type: 'success',
-      title: `Attendance logged for ${data.employeeName}`,
-      description: timeOutStamp
-        ? `Time In: ${timeInStamp} · Time Out: ${timeOutStamp}`
-        : `Time In: ${timeInStamp} · Time-Out not yet recorded`,
-    });
+    try {
+      await saveRecord(record);
+      await refreshTodayRecords();
+      setSubmitted(true);
+      addToast({
+        type: 'success',
+        title: `Attendance logged for ${data.employeeName}`,
+        description: timeOutStamp
+          ? `Time In: ${timeInStamp} · Time Out: ${timeOutStamp}`
+          : `Time In: ${timeInStamp} · Time-Out not yet recorded`,
+      });
+    } catch (error) {
+      console.error('Failed to save attendance:', error);
+      addToast({
+        type: 'error',
+        title: 'Save failed',
+        description: 'Unable to save attendance. Please try again.',
+      });
+    } finally {
+      setSubmitting(false);
+    }
 
     // Reset after 2s
     setTimeout(() => {

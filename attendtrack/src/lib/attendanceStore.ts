@@ -1,5 +1,3 @@
-// Backend integration point: replace localStorage with API calls to your database
-
 export interface AttendanceRecord {
   id: string;
   employeeName: string;
@@ -13,8 +11,40 @@ export interface AttendanceRecord {
 }
 
 const STORAGE_KEY = 'attendtrack_records';
+const SUPABASE_TABLE = 'attendance_records';
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-export function getAllRecords(): AttendanceRecord[] {
+function supportsSupabase(): boolean {
+  if (typeof window === 'undefined') return false;
+  if (!SUPABASE_URL || !SUPABASE_KEY) return false;
+
+  const invalidUrl = SUPABASE_URL.includes('your-project-id') || SUPABASE_URL.includes('dummy.supabase.co');
+  const invalidKey = SUPABASE_KEY.includes('dummykey') || SUPABASE_KEY.includes('your-');
+
+  return !invalidUrl && !invalidKey;
+}
+
+async function supabaseFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const url = `${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}${path}`;
+  const headers = {
+    apikey: SUPABASE_KEY ?? '',
+    Authorization: `Bearer ${SUPABASE_KEY ?? ''}`,
+    'Content-Type': 'application/json',
+    Prefer: 'return=representation',
+    ...(options.headers || {}),
+  };
+
+  const response = await fetch(url, { ...options, headers });
+  const text = await response.text();
+  if (!response.ok) {
+    throw new Error(text || response.statusText);
+  }
+
+  return text ? JSON.parse(text) : ([] as unknown as T);
+}
+
+async function localGetAllRecords(): Promise<AttendanceRecord[]> {
   if (typeof window === 'undefined') return [];
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -24,9 +54,9 @@ export function getAllRecords(): AttendanceRecord[] {
   }
 }
 
-export function saveRecord(record: AttendanceRecord): void {
+async function localSaveRecord(record: AttendanceRecord): Promise<void> {
   if (typeof window === 'undefined') return;
-  const records = getAllRecords();
+  const records = await localGetAllRecords();
   const idx = records.findIndex((r) => r.id === record.id);
   if (idx >= 0) {
     records[idx] = record;
@@ -36,9 +66,57 @@ export function saveRecord(record: AttendanceRecord): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
 }
 
-export function getTodayRecords(): AttendanceRecord[] {
+export async function getAllRecords(): Promise<AttendanceRecord[]> {
+  if (!supportsSupabase()) return localGetAllRecords();
+
+  try {
+    const records = await supabaseFetch<AttendanceRecord[]>('?select=*&order=date.desc,submittedAt.desc', {
+      method: 'GET',
+    });
+    return records;
+  } catch (error) {
+    console.error('Supabase getAllRecords failed:', error);
+    return localGetAllRecords();
+  }
+}
+
+export async function saveRecord(record: AttendanceRecord): Promise<void> {
+  if (!supportsSupabase()) {
+    await localSaveRecord(record);
+    return;
+  }
+
+  try {
+    await supabaseFetch<AttendanceRecord[]>('', {
+      method: 'POST',
+      headers: {
+        Prefer: 'resolution=merge-duplicates,return=minimal',
+      },
+      body: JSON.stringify(record),
+    });
+  } catch (error) {
+    console.error('Supabase saveRecord failed:', error);
+    await localSaveRecord(record);
+  }
+}
+
+export async function getTodayRecords(): Promise<AttendanceRecord[]> {
+  if (!supportsSupabase()) {
+    const today = new Date().toISOString().split('T')[0];
+    return (await localGetAllRecords()).filter((r) => r.date === today);
+  }
+
   const today = new Date().toISOString().split('T')[0];
-  return getAllRecords().filter((r) => r.date === today);
+  try {
+    const records = await supabaseFetch<AttendanceRecord[]>(`?select=*&date=eq.${today}&order=submittedAt.desc`, {
+      method: 'GET',
+    });
+    return records;
+  } catch (error) {
+    console.error('Supabase getTodayRecords failed:', error);
+    const all = await localGetAllRecords();
+    return all.filter((r) => r.date === today);
+  }
 }
 
 export function generateId(): string {
@@ -58,7 +136,8 @@ export function computeDuration(timeIn: string, timeOut: string): string {
 // Seeded mock data for admin dashboard demo
 export function seedMockData(): void {
   if (typeof window === 'undefined') return;
-  const existing = getAllRecords();
+  const raw = localStorage.getItem(STORAGE_KEY);
+  const existing: AttendanceRecord[] = raw ? JSON.parse(raw) : [];
   if (existing.length > 0) return; // already seeded
 
   const employees = [

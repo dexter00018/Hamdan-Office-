@@ -149,21 +149,22 @@ export default function AdminDashboardClient() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  const loadRecords = useCallback(() => {
+  const loadRecords = useCallback(async () => {
     setLoading(true);
-    
-    // Ni-comment out ang seedMockData() para hindi na mag-generate ng dummy data.
-    // seedMockData(); 
-    
-    setTimeout(() => {
-      const all = getAllRecords();
+
+    try {
+      const all = await getAllRecords();
       setRecords(all);
       const now = new Date();
       setLastUpdated(
         `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
       );
+    } catch (error) {
+      console.error('Failed to load attendance records:', error);
+      setRecords([]);
+    } finally {
       setLoading(false);
-    }, 600);
+    }
   }, []);
 
   useEffect(() => {

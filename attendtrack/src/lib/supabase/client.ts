@@ -1,61 +1,73 @@
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+'use client';
 
-export function createClient() {
-  if (!supabaseUrl || !supabaseAnonKey) {
-    return {
-      auth: {
-        getSession: async () => ({ data: { session: null } }),
-        onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
-        signUp: async () => ({ data: null, error: { message: 'Supabase is not configured.' } }),
-        signInWithPassword: async () => ({ data: null, error: { message: 'Supabase is not configured.' } }),
-        signOut: async () => ({ error: { message: 'Supabase is not configured.' } }),
-        getUser: async () => ({ data: null, error: { message: 'Supabase is not configured.' } }),
-      },
-      from: () => ({
-        select: async () => ({ data: null, error: { message: 'Supabase is not configured.' } }),
-        upsert: async () => ({ data: null, error: { message: 'Supabase is not configured.' } }),
-      }),
-    };
-  }
+import { createRealClient } from './createRealClient';
 
-  const authUrl = `${supabaseUrl}/auth/v1`;
-  const headers = {
-    apikey: supabaseAnonKey,
-    Authorization: `Bearer ${supabaseAnonKey}`,
-    'Content-Type': 'application/json',
+/**
+ * Client wrapper used across the app.
+ * 
+ * - When SUPABASE env vars are missing/invalid, returns a minimal stub that still type-checks.
+ * - When env vars exist, returns the real @supabase/supabase-js client.
+ */
+
+type Unsubscribe = { unsubscribe: () => void };
+
+type AuthLike = {
+  getSession: () => Promise<{ data: { session: any } }>;
+  onAuthStateChange: (
+    callback: (event: string, session: any) => void
+  ) => { data: { subscription: Unsubscribe } };
+  signUp: (args: any) => Promise<{ data: any; error: any }>;
+  signInWithPassword: (args: any) => Promise<{ data: any; error: any }>;
+  signOut: () => Promise<{ error: any }>;
+  getUser: () => Promise<{ data: { user: any }; error: any }>;
+};
+
+type QueryLike = {
+  select: (columns?: string) => QueryLike;
+  upsert: (row: any) => Promise<{ data: any; error: any }>;
+  eq: (column: string, value: any) => QueryLike;
+  single: () => Promise<{ data: any; error: any }>;
+};
+
+type SupabaseLike = {
+  auth: AuthLike;
+  from: (table: string) => QueryLike;
+};
+
+function makeStubClient(): SupabaseLike {
+  const err = (message: string) => ({ message });
+
+  const stubQuery: QueryLike = {
+    select: () => stubQuery,
+    upsert: async () => ({ data: null, error: err('Supabase is not configured.') }),
+    eq: () => stubQuery,
+    single: async () => ({ data: null, error: err('Supabase is not configured.') }),
+  };
+
+  const stubAuth: AuthLike = {
+    getSession: async () => ({ data: { session: null } }),
+    onAuthStateChange: (callback) => {
+      // call once with null session
+      callback('INITIAL_SESSION', null);
+      return { data: { subscription: { unsubscribe: () => {} } } };
+    },
+    signUp: async () => ({ data: null, error: err('Supabase is not configured.') }),
+    signInWithPassword: async () => ({ data: null, error: err('Supabase is not configured.') }),
+    signOut: async () => ({ error: err('Supabase is not configured.') }),
+    getUser: async () => ({ data: { user: null }, error: err('Supabase is not configured.') }),
   };
 
   return {
-    auth: {
-      getSession: async () => ({ data: { session: null }, error: null }),
-      onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
-      signUp: async (opts: any) => ({ data: null, error: { message: 'Sign up not implemented in stub' } }),
-      signInWithPassword: async (opts: any) => ({ data: null, error: { message: 'Sign in not implemented in stub' } }),
-      signOut: async () => ({ data: null, error: { message: 'Sign out not implemented in stub' } }),
-      getUser: async () => ({ data: null, error: { message: 'Get user not implemented in stub' } }),
-    },
-    from: (table: string) => ({
-      select: async (columns = '*') => {
-        const params = new URLSearchParams({ select: columns });
-        const response = await fetch(`${supabaseUrl}/rest/v1/${table}?${params.toString()}`, {
-          headers,
-        });
-        const data = await response.json();
-        return { data, error: response.ok ? null : { message: data?.message || response.statusText } };
-      },
-      upsert: async (row: any) => {
-        const response = await fetch(`${supabaseUrl}/rest/v1/${table}?on_conflict=id`, {
-          method: 'POST',
-          headers: {
-            ...headers,
-            Prefer: 'resolution=merge-duplicates,return=representation',
-          },
-          body: JSON.stringify(row),
-        });
-        const data = response.status === 204 ? [] : await response.json();
-        return { data, error: response.ok ? null : { message: data?.message || response.statusText } };
-      },
-    }),
+    auth: stubAuth,
+    from: () => stubQuery,
   };
 }
+
+export function createClient(): SupabaseLike {
+  const real = createRealClient();
+  if (!real) return makeStubClient();
+
+  // The real client satisfies the same surface we use.
+  return real as any;
+}
+

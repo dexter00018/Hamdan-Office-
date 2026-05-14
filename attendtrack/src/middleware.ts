@@ -1,26 +1,23 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-// Kunin ang mga Office IPs mula sa Environment Variables sa Vercel
+// Whitelist ng Office IPs
 const OFFICE_IPS = (process.env.OFFICE_PUBLIC_IPS ?? '')
   .split(',')
   .map((s) => s.trim())
   .filter(Boolean);
 
 export function middleware(request: NextRequest) {
-  // Kunin ang IP address ng bumibisita
   const ip = request.ip || request.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
-  
-  // I-check kung ang IP ay kasama sa whitelist
   const isOffice = ip && OFFICE_IPS.includes(ip);
 
-  // Huwag i-block kung nasa local development (localhost)
+  // Bypass if development
   if (process.env.NODE_ENV === 'development') {
     return NextResponse.next();
   }
 
   if (!isOffice) {
-    // Path ng image base sa folder structure mo: attendtrack/public/assets/images/403error.png
+    // Base sa image_a3d3b3.png, ang path ay assets/images/
     const imagePath = '/assets/images/403error.png';
 
     const html = `
@@ -40,7 +37,6 @@ export function middleware(request: NextRequest) {
     <body class="flex items-center justify-center min-h-screen p-6">
       <div class="max-w-md w-full glass rounded-[2.5rem] p-10 text-center glow relative z-10">
         
-        <!-- Image display -->
         <img 
           src="${imagePath}" 
           alt="403 Forbidden" 
@@ -52,17 +48,15 @@ export function middleware(request: NextRequest) {
           Access Denied
         </h1>
         
-        <p class="text-gray-400 text-sm leading-relaxed mb-8">
+        <p class="text-gray-400 text-sm leading-relaxed mb-8 text-center px-4">
           This system is restricted. Please connect to the 
-          <span class="text-blue-400 font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300">
-            Hamdan Studio Office Network
-          </span> 
+          <span class="text-blue-400 font-bold">Hamdan Studio Office Network</span> 
           to log your attendance.
         </p>
 
-        <div class="bg-black/30 rounded-2xl p-5 mb-4 border border-white/5">
-          <p class="text-[10px] uppercase tracking-[0.2em] text-gray-500 mb-2 font-bold text-center">Unauthorized IP Address</p>
-          <div class="text-blue-300 font-mono text-xl text-center">${ip || 'Hidden'}</div>
+        <div class="bg-black/40 rounded-2xl p-5 mb-6 border border-white/5 inline-block w-full">
+          <p class="text-[10px] uppercase tracking-[0.2em] text-gray-500 mb-2 font-bold">Unauthorized IP Address</p>
+          <div class="text-blue-300 font-mono text-xl tracking-wider">${ip || 'Hidden'}</div>
         </div>
 
         <p class="text-[10px] text-gray-600 font-medium tracking-widest uppercase">
@@ -70,7 +64,6 @@ export function middleware(request: NextRequest) {
         </p>
       </div>
 
-      <!-- Ambient Background Glow -->
       <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-blue-600/10 rounded-full blur-[120px] -z-0"></div>
     </body>
     </html>
@@ -86,6 +79,12 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // IMPORTANT: Kailangan kasama ang 'assets' sa exclusion list para lumabas ang image
+  /*
+   * Match lahat ng request EXCEPT:
+   * 1. api routes
+   * 2. _next/static at _next/image
+   * 3. assets folder (para lumabas ang logo/error image)
+   * 4. favicon.ico
+   */
   matcher: ['/((?!api|_next/static|_next/image|assets|favicon.ico).*)'],
 };

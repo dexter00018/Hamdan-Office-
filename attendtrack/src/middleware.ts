@@ -16,7 +16,7 @@ export function middleware(request: NextRequest) {
 
   if (!isOffice) {
     // Siguraduhin na ang "image_a379b7.png" ay nasa loob ng iyong /public/assets/images/ folder
-    const imagePath = '/assets/images/image_a379b7.png';
+    const imagePath = '/assets/images/403error.png';
 
     const html = `
     <!DOCTYPE html>

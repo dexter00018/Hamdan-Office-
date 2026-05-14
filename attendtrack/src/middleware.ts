@@ -15,8 +15,8 @@ export function middleware(request: NextRequest) {
   }
 
   if (!isOffice) {
-    // Path ng image base sa structure mo: public/assets/images/403error.png
-    const imagePath = '/assets/images/403error.png';
+    // Siguraduhin na ang "image_a379b7.png" ay nasa loob ng iyong /public/assets/images/ folder
+    const imagePath = '/assets/images/image_a379b7.png';
 
     const html = `
     <!DOCTYPE html>
@@ -26,12 +26,25 @@ export function middleware(request: NextRequest) {
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>Access Denied</title>
       <style>
-        body, html { margin: 0; padding: 0; height: 100%; width: 100%; display: flex; align-items: center; justify-content: center; background-color: #0b0f1a; overflow: hidden; }
-        img { max-width: 100%; max-height: 100vh; object-fit: contain; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body, html { 
+          height: 100%; 
+          width: 100%; 
+          overflow: hidden; 
+          background-color: #0b0f1a; 
+        }
+        .bg-fullscreen {
+          background-image: url("${imagePath}");
+          background-position: center;
+          background-repeat: no-repeat;
+          background-size: cover; /* Eto ang magpapa-full screen sa image */
+          height: 100vh;
+          width: 100vw;
+        }
       </style>
     </head>
     <body>
-      <img src="${imagePath}" alt="Access Denied">
+      <div class="bg-fullscreen"></div>
     </body>
     </html>
     `;

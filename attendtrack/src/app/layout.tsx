@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   description:
     'AttendTrack helps teams log daily attendance with digital signatures and gives HR managers real-time reports and payroll-ready exports.',
   icons: {
-    icon: [{ url: '/assets/images/app_logo.png', type: 'image/png' }],
+    icon: [{ url: '/assets/images/app_logo.png?v=1', type: 'image/png' }],
   },
 };
 

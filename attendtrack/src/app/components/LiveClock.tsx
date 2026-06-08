@@ -33,11 +33,15 @@ export default function LiveClock() {
   }, []);
 
   return (
-    <div className="text-center mb-6">
-      <div className="clock-display text-6xl font-bold text-foreground leading-none mb-2">
+    <div className="text-center">
+      {/* Ginawang font-tabular para hindi umuuga o gumagalaw ang mga numero kada segundo */}
+      <div className="clock-display text-5xl sm:text-6xl font-extrabold font-tabular leading-none mb-2 tracking-tight">
         {time}
       </div>
-      <p className="text-sm font-medium text-muted-foreground">{date}</p>
+      {/* Ginawang opacity-90 o currentColor para sumunod sa kulay ng hero text */}
+      <p className="text-xs sm:text-sm font-medium opacity-90 tracking-wide uppercase">
+        {date}
+      </p>
     </div>
   );
 }

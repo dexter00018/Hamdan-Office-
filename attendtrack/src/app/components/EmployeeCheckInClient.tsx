@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
-import { LogIn, LogOut, PenLine, RotateCcw, Send, CheckCircle2, AlertCircle } from 'lucide-react';
+import { LogIn, LogOut, PenLine, RotateCcw, Send, CheckCircle2, AlertCircle, Upload } from 'lucide-react'; // Idinagdag ang Upload icon
 import LiveClock from './LiveClock';
 import SignatureCanvas, { SignatureCanvasHandle } from './SignatureCanvas';
 import TodaySubmissions from './TodaySubmissions';
@@ -34,6 +34,9 @@ export default function EmployeeCheckInClient() {
   const [submitted, setSubmitted] = useState(false);
   const [todayRecords, setTodayRecords] = useState<AttendanceRecord[]>([]);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  
+  // State para itago ang "Sign here" text kapag may laman na ang canvas (in-upload o iginuhit)
+  const [isCanvasEmpty, setIsCanvasEmpty] = useState(true);
 
   const {
     register,
@@ -93,13 +96,18 @@ export default function EmployeeCheckInClient() {
     addToast({ type: 'success', title: 'Time-Out recorded', description: `Logged at ${t}` });
   };
 
+  const clearSignatureHandler = () => {
+    sigRef.current?.clear();
+    setIsCanvasEmpty(true);
+  };
+
   const onSubmit = async (data: FormValues) => {
     if (!timeInStamp) {
       addToast({ type: 'error', title: 'Time-In required', description: 'Press the Time In button before submitting.' });
       return;
     }
     if (sigRef.current?.isEmpty()) {
-      addToast({ type: 'error', title: 'Signature required', description: 'Please draw your signature before submitting.' });
+      addToast({ type: 'error', title: 'Signature required', description: 'Please draw or upload your signature before submitting.' });
       return;
     }
 
@@ -152,7 +160,7 @@ export default function EmployeeCheckInClient() {
     // Reset after 2s
     setTimeout(() => {
       reset();
-      sigRef.current?.clear();
+      clearSignatureHandler();
       setTimeInStamp(null);
       setTimeOutStamp(null);
       setSubmitted(false);
@@ -177,6 +185,7 @@ export default function EmployeeCheckInClient() {
 
         {/* Check-In Form */}
         <form onSubmit={handleSubmit(onSubmit)} noValidate>
+          {/* Employee Details */}
           <div className="card-elevated p-6 mb-5">
             <h2 className="text-base font-semibold text-foreground mb-4 flex items-center gap-2">
               <span className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">1</span>
@@ -313,30 +322,35 @@ export default function EmployeeCheckInClient() {
             )}
           </div>
 
-          {/* Signature */}
+          {/* Signature Card */}
           <div className="card-elevated p-6 mb-5">
             <h2 className="text-base font-semibold text-foreground mb-1 flex items-center gap-2">
               <span className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">3</span>
               Digital Signature
             </h2>
             <p className="text-xs text-muted-foreground mb-3 ml-7">
-              Draw your signature below using a mouse, finger, or stylus
+              Draw your signature below or upload an image file of your signature
             </p>
 
-            <div className="relative">
+            <div className="relative" onMouseDown={() => setIsCanvasEmpty(false)} onTouchStart={() => setIsCanvasEmpty(false)}>
+              {/* Gagamitin ang ating bagong child component na may upload button */}
               <SignatureCanvas ref={sigRef} width={500} height={130} />
-              <div className="absolute bottom-2 left-0 right-0 flex items-center justify-center pointer-events-none">
-                <div className="flex items-center gap-1.5 text-muted-foreground/40">
-                  <PenLine className="w-3.5 h-3.5" />
-                  <span className="text-xs">Sign here</span>
+              
+              {/* Itatago ang overlay text na ito kapag may laman na ang canvas */}
+              {isCanvasEmpty && (
+                <div className="absolute bottom-2 left-0 right-0 flex items-center justify-center pointer-events-none">
+                  <div className="flex items-center gap-1.5 text-muted-foreground/40">
+                    <PenLine className="w-3.5 h-3.5" />
+                    <span className="text-xs">Sign or upload here</span>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             <div className="flex gap-2 mt-3">
               <button
                 type="button"
-                onClick={() => sigRef.current?.clear()}
+                onClick={clearSignatureHandler}
                 className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-all duration-150 active:scale-95"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
@@ -345,7 +359,7 @@ export default function EmployeeCheckInClient() {
             </div>
           </div>
 
-          {/* Submit */}
+          {/* Submit Button */}
           <button
             type="submit"
             disabled={submitting || submitted}
